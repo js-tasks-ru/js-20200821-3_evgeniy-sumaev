@@ -5,5 +5,5 @@
  * @returns {number}
  */
 export default function sum(m, n) {
-
+    return parseInt(m, 10) + parseInt(n, 10);
 }
