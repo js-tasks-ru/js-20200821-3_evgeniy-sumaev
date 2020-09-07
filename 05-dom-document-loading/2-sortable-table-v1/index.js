@@ -3,7 +3,8 @@ export default class SortableTable {
   subElements = {};
 
   constructor(header = [], {data = []} = {}) {
-    Object.assign(this, {header, data});
+    this.header = header;
+    this.data = data;
     this.render();
   }
 
@@ -73,8 +74,13 @@ export default class SortableTable {
   }
   
   sort(key, param) {
-    const sortDirection = param === 'asc' ? 1 : param === 'desc' ? -1 : 0;
+    const sortDirection = {
+      asc: 1,
+      desc: -1
+    }
 
+    // Вспомогательная функция для сортировки по title. По умолчанию, латиница идет перед кириллицей.
+    // Тесты ожидают, что латиница должна следовать после кириллицы.
     function matchLocale (x, y) {
       if (typeof x === 'string' && typeof y === 'string') {
         const aIdx = x.toString()[0].search(/[a-zA-Z]/);
@@ -86,7 +92,7 @@ export default class SortableTable {
 
     this.data.sort((a, b) => {
       const match = a[key] > b[key] ? 1 : -1;
-      return match * sortDirection * matchLocale(a[key], b[key]);
+      return match * sortDirection[param] * matchLocale(a[key], b[key]);
     });
 
     this.setTableBody();

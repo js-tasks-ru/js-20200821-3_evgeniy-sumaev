@@ -1,10 +1,13 @@
 export default class NotificationMessage {
 
   constructor(message = '', { duration = 0, type = ''} = {}) {
-    NotificationMessage.activeElem 
-      && NotificationMessage.activeElem.remove();
+    if (NotificationMessage.activeElem) {
+      NotificationMessage.activeElem.remove();
+    } 
 
-    Object.assign(this, {message, duration, type})
+    this.message = message;
+    this.duration = duration;
+    this.type = type;
     this.render();
   }
 
