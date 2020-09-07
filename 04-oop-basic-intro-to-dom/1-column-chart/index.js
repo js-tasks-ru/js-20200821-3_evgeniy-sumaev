@@ -11,13 +11,7 @@ export default class ColumnChart {
   }
 
   getLinkStr(link) {
-    let linkStr = '';
-    
-    if (link) {
-      linkStr = `<a href="${link}" class="column-chart__link">View all</a>`;
-    }
-
-    return linkStr;
+    return link ? `<a href="${link}" class="column-chart__link">View all</a>` : '';
   }
 
   getChartStr(data) {
@@ -25,18 +19,18 @@ export default class ColumnChart {
     const idx = this.chartHeight / maxLvl;
 
     return data
-      .reduce((str, lvl) => {
+      .map(lvl => {
         const chartLvl = Math.floor(lvl * idx);
         const percent = Math.round(lvl / maxLvl * 100);
 
-        return str + `<div style="--value: ${chartLvl}" data-tooltip="${percent}%"></div>`;
-      }, '');
+        return `<div style="--value: ${chartLvl}" data-tooltip="${percent}%"></div>`;
+      }).join('');
       
   }
 
   getSum = (data) => data.reduce((acc, itm) => acc + itm, 0); 
 
-  getRenderStr() {
+  get renderStr() {
     const renderStr = `
       <div class="column-chart__title">
         Total ${this.label}
@@ -54,7 +48,7 @@ export default class ColumnChart {
 
   render() {
     const elem = document.createElement('div');
-    elem.innerHTML = this.getRenderStr();
+    elem.innerHTML = this.renderStr;
     this.element = elem.firstElementChild;
   }
 
