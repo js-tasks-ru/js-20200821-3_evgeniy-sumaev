@@ -13,14 +13,14 @@ class Tooltip {
     document.addEventListener('pointerout', () => this.onOut());
   };
 
-  onOver(e) {
+  onOver = e => {
     const tooltipElem = e.target.closest('[data-tooltip]');
 
     if (tooltipElem) {
       const { tooltip } = tooltipElem.dataset;
       this.render(tooltip);
       this.setPosition(e);
-      document.addEventListener('pointermove', e => this.onMove(e));
+      document.addEventListener('pointermove', this.onMove);
     }
   }
 
@@ -37,13 +37,9 @@ class Tooltip {
     this.element.style.top = `${e.clientY + 5}px`
   }
 
-  onMove(e) {
-    this.setPosition(e);
-  }
+  onMove = e => this.setPosition(e);
 
-  onOut() {
-    this.remove();
-  } 
+  onOut = () => this.remove();
 
   remove() {
     if (this.element) {
@@ -54,6 +50,8 @@ class Tooltip {
 
   destroy() {
     this.remove();
+    document.removeEventListener('pointerover', this.onOver);
+    document.removeEventListener('pointerout', this.onOut);
   }
 }
 
