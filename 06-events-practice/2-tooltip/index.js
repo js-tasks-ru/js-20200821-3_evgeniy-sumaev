@@ -9,8 +9,8 @@ class Tooltip {
   }
 
   initialize() {
-    document.addEventListener('pointerover', e => this.onOver(e));
-    document.addEventListener('pointerout', () => this.onOut());
+    document.addEventListener('pointerover', this.onOver);
+    document.addEventListener('pointerout', this.onOut);
   };
 
   onOver = e => {
@@ -20,7 +20,7 @@ class Tooltip {
       const { tooltip } = tooltipElem.dataset;
       this.render(tooltip);
       this.setPosition(e);
-      document.addEventListener('pointermove', this.onMove);
+      document.addEventListener('pointermove', this.setPosition);
     }
   }
 
@@ -36,8 +36,6 @@ class Tooltip {
     this.element.style.left = `${e.clientX + 5}px`
     this.element.style.top = `${e.clientY + 5}px`
   }
-
-  onMove = e => this.setPosition(e);
 
   onOut = () => this.remove();
 
