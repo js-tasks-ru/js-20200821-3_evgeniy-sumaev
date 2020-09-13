@@ -31,7 +31,7 @@ class Worker {
 
   mousemove(event) {
     const { minValue: minValueElem, maxValue: maxValueElem, progress: progressElem } = this.slider.subElements;
-    const { valueFrom, valueTo, minPercent, maxPercent } = this.slider;
+    const { valueFrom, valueTo, minPercent, maxPercent, formatValue } = this.slider;
 
     function getPercent(width, side) {
       const leftStartPosition = this.startPosition - this.startOffsetX;
@@ -80,10 +80,10 @@ class Worker {
       const value = getValue(currentPercent, side);
 
       if (side === 'left') {
-        minValueElem.textContent = '$' + value;
+        minValueElem.textContent = formatValue(value);
         this.slider.minPercent = currentPercent;
       } else if (side === 'right') {
-        maxValueElem.textContent = '$' + value;
+        maxValueElem.textContent = formatValue(value);
         this.slider.maxPercent = currentPercent;
       }
 
@@ -106,13 +106,18 @@ class Worker {
 export default class DoubleSlider {
   subElements = {};
 
-  constructor(valueFrom = 0, valueTo = 100, minPercent = 10, maxPercent = 35) {
-    this.valueFrom = valueFrom;
-    this.valueTo = valueTo;
-    this.minPercent = minPercent;
-    this.maxPercent = maxPercent;
+  constructor({min = 100, max = 200,
+      formatValue = value => '$' + value,
+      selected: { from = 120, to = 150 }
+    } = { selected: {} }) {
+    this.valueFrom = min;
+    this.valueTo = max;
+    this.minPercent = Math.round((from - min) / (max - min) * 100);
+    this.maxPercent = 100 - Math.round((to - min) / (max - min) * 100);
     this.currentMinValue = this.getValue('left');
     this.currentMaxValue = this.getValue('right');
+    this.formatValue = formatValue;
+    console.log(this);
     this.render();
     this.initEventListeners();
   }
@@ -155,7 +160,8 @@ export default class DoubleSlider {
       right: this.currentMaxValue,
     }
     const valueElem = document.createElement('span');
-    valueElem.innerHTML = `<span>$${sideOptions[side]}</span>`;
+    const value = this.formatValue(sideOptions[side]);
+    valueElem.innerHTML = `<span>${value}</span>`;
 
     return valueElem;
   }
