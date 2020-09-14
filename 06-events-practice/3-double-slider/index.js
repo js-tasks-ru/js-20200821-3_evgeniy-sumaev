@@ -1,11 +1,11 @@
 class Worker {
 
   constructor(slider) {
-      if (Worker.exist) {
-        Worker.exist.initValues(slider);  
-        return Worker.exist;
-      }
-      Worker.exist = this;
+      // if (Worker.exist) {
+      //   Worker.exist.initValues(slider);  
+      //   return Worker.exist;
+      // }
+      // Worker.exist = this;
       this.initValues(slider);
   }
 
@@ -17,7 +17,8 @@ class Worker {
       this[event.type](event);
   }
 
-  mousedown(event) {
+  pointerdown(event) {
+    console.log(event);
       const thumbElem = event.target.closest('[class^="range-slider__thumb"]');
       
       if(thumbElem) {
@@ -29,12 +30,13 @@ class Worker {
       }
   }
 
-  mousemove(event) {
+  pointermove(event) {
     const { minValue: minValueElem, maxValue: maxValueElem, progress: progressElem } = this.slider.subElements;
-    const { valueFrom, valueTo, minPercent, maxPercent, formatValue } = this.slider;
+    const { min, max, minPercent, maxPercent, formatValue } = this.slider;
 
     function getPercent(width, side) {
       const leftStartPosition = this.startPosition - this.startOffsetX;
+      console.log(this.currentThumb.offsetWidth);
       const rightStartPosition = this.startPosition + this.currentThumb.offsetWidth - this.startOffsetX;
       const sideOptions = {
         leftShiftPercent: (event.clientX - leftStartPosition) / width * 100,
@@ -68,7 +70,7 @@ class Worker {
 
     function getValue(percent, side) {
       const normalPercent = side === 'left' ? percent : 100 - percent;
-      const result = valueFrom + (valueTo - valueFrom) / 100 * normalPercent;
+      const result = min + (max - min) / 100 * normalPercent;
 
       return Math.round(result);
     }
@@ -76,23 +78,25 @@ class Worker {
     if (this.currentThumb) {
       const progressBase = this.currentThumb.offsetParent;
       const side = this.currentThumb.className.replace('range-slider__thumb-', '');
-      const currentPercent = getPercent.call(this, progressBase.offsetWidth, side);
-      const value = getValue(currentPercent, side);
-
-      if (side === 'left') {
-        minValueElem.textContent = formatValue(value);
-        this.slider.minPercent = currentPercent;
-      } else if (side === 'right') {
-        maxValueElem.textContent = formatValue(value);
-        this.slider.maxPercent = currentPercent;
+      if (progressBase) {
+        const currentPercent = getPercent.call(this, progressBase.offsetWidth, side);
+        const value = getValue(currentPercent, side);
+  
+        if (side === 'left') {
+          minValueElem.textContent = formatValue(value);
+          this.slider.minPercent = currentPercent;
+        } else if (side === 'right') {
+          maxValueElem.textContent = formatValue(value);
+          this.slider.maxPercent = currentPercent;
+        }
+  
+        this.currentThumb.style[side] = currentPercent + '%';
+        progressElem.style[side] = currentPercent + '%';
       }
-
-      this.currentThumb.style[side] = currentPercent + '%';
-      progressElem.style[side] = currentPercent + '%';
     }
   }
 
-  mouseup() {
+  pointerup() {
     if (this.currentThumb) {
       this.currentThumb = null;
       this.startPosition = 0;
@@ -105,26 +109,32 @@ class Worker {
 
 export default class DoubleSlider {
   subElements = {};
+  listeners = ['pointerdown', 'pointermove', 'pointerup'];
 
-  constructor({min = 100, max = 200,
-      formatValue = value => '$' + value,
-      selected: { from = 120, to = 150 }
-    } = { selected: {} }) {
-    this.valueFrom = min;
-    this.valueTo = max;
+  constructor({min = 100, max = 200, formatValue = value => '$' + value,
+      selected = {}} = {}) {
+    const { from = min, to = max } = selected;
+    this.min = min;
+    this.max = max;
     this.minPercent = Math.round((from - min) / (max - min) * 100);
     this.maxPercent = 100 - Math.round((to - min) / (max - min) * 100);
     this.currentMinValue = this.getValue('left');
     this.currentMaxValue = this.getValue('right');
     this.formatValue = formatValue;
-    console.log(this);
     this.render();
     this.initEventListeners();
   }
 
   initEventListeners() {
-    ['mousedown', 'mousemove', 'mouseup']
-      .forEach(event => document.addEventListener(event, new Worker(this)));
+    const worker = new Worker(this);
+    this.worker = worker;
+    this.listeners
+      .forEach(event => this.element.addEventListener(event, this.worker));
+  }
+
+  removeEventListeners() {
+    this.listeners
+      .forEach(event => this.element.removeEventListener(event, this.worker));
   }
   
   render() {
@@ -158,8 +168,11 @@ export default class DoubleSlider {
     const sideOptions = {
       left: this.currentMinValue,
       right: this.currentMaxValue,
+      leftAttr: 'from',
+      rightAttr: 'to'
     }
     const valueElem = document.createElement('span');
+    valueElem.dataset.element = sideOptions[`${side}Attr`];
     const value = this.formatValue(sideOptions[side]);
     valueElem.innerHTML = `<span>${value}</span>`;
 
@@ -168,7 +181,7 @@ export default class DoubleSlider {
 
   getValue(side) {
     const normalPercent = side === 'left' ? this.minPercent : 100 - this.maxPercent;
-    const result = this.valueFrom + (this.valueTo - this.valueFrom) / 100 * normalPercent;
+    const result = this.min + (this.max - this.min) / 100 * normalPercent;
 
     return Math.round(result);
   }
@@ -194,5 +207,16 @@ export default class DoubleSlider {
     thumbElem.style = `${side}: ${value}%`;
 
     return thumbElem;
+  }
+
+  remove() {
+    if (this.element) {
+      this.element.remove();
+    }
+  }
+  
+  destroy() {
+    this.remove();
+    this.removeEventListeners();
   }
 }
