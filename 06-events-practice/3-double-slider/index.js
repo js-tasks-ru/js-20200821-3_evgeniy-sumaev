@@ -23,6 +23,7 @@ class Handler {
     document.addEventListener('pointermove', this);
     document.addEventListener('pointerup', this);
     this.currentThumb = thumbElem;
+    this.currentThumb.classList.add('range-slider_dragging');
   }
 
   onPointermove(event) {
@@ -50,12 +51,7 @@ class Handler {
     const { min, max } = this.slider;
     const range = max - min;
 
-    if (this.thumbSide === 'left') {
-      result.percent = (position - innerLeft + this.shiftX) / width * 100;
-    } else {
-      result.percent = (position - innerLeft - this.shiftX) / width * 100;
-    }
-
+    result.percent = (position - innerLeft + this.shiftX) / width * 100;
     result.percent = this.checkLimit(result.percent);
     result.value = range / 100 * result.percent + min;
     result.value = Math.round(result.value);
@@ -83,11 +79,18 @@ class Handler {
   }
 
   onPointerup() {
+    this.currentThumb.classList.remove('range-slider_dragging');
+
     document.removeEventListener('pointermove', this);
     document.removeEventListener('pointerup', this);
-    this.currentThumb = null;
-    this.thumbSide = '';
-    this.shiftX = 0;
+
+    this.slider.element.dispatchEvent(new CustomEvent("range-select", {
+      detail: {
+        from: this.slider.selected.from,
+        to: this.slider.selected.to,
+      },
+      bubbles: true
+    }))
   }
 }
 

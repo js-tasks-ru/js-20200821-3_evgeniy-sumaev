@@ -9,70 +9,11 @@
 
   <script type="module">
     import DoubleSlider from './index.js';
-    import DoubleSlider1 from './index1.js';
 
-    // const slider = new DoubleSlider();
+    const slider = new DoubleSlider();
 
-    // root.append(slider.element);
-    {
-      const doubleSlider = new DoubleSlider({
-        min: 100,
-        max: 200,
-        formatValue: value => '$' + value,
-        selected: {
-          from: 120,
-          to: 150
-        }
-      });
+    root.append(slider.element);
 
-      document.body.append(doubleSlider.element);
-
-      const leftSlider = doubleSlider.element.querySelector('.range-slider__thumb-left');
-      const leftBoundary = doubleSlider.element.querySelector('span[data-element="from"]');
-
-      const down = new MouseEvent('pointerdown', {
-        bubbles: true
-      });
-
-      const move = new MouseEvent('pointermove', {
-        clientX: 0,
-        bubbles: true
-      });
-
-      // leftSlider.dispatchEvent(down);
-      // leftSlider.dispatchEvent(move);
-      // console.log(leftBoundary);
-      // console.log(doubleSlider.min);
-    }
-    {
-      const doubleSlider = new DoubleSlider1({
-        min: 100,
-        max: 200,
-        formatValue: value => '$' + value,
-        selected: {
-          from: 120,
-          to: 150
-        }
-      });
-
-      document.body.append(doubleSlider.element);
-
-      const leftSlider = doubleSlider.element.querySelector('.range-slider__thumb-left');
-      const leftBoundary = doubleSlider.element.querySelector('span[data-element="from"]');
-
-      const down = new MouseEvent('pointerdown', {
-        bubbles: true
-      });
-
-      const move = new MouseEvent('pointermove', {
-        clientX: 0,
-        bubbles: true
-      });
-
-      // leftSlider.dispatchEvent(down);
-      // leftSlider.dispatchEvent(move);
-      // console.log(leftBoundary);
-      // console.log(doubleSlider.min);
-    }
+    document.addEventListener('range-select',  e => console.log(e));
   </script>
 </body>
