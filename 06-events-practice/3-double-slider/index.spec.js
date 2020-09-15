@@ -201,24 +201,23 @@ describe('events-practice/double-slider', () => {
   it('should have a new ranges in produced event', () => {
     const spyDispatchEvent = jest.spyOn(doubleSlider.element, 'dispatchEvent');
     const leftSlider = doubleSlider.element.querySelector('.range-slider__thumb-left');
-    
+
     const down = new MouseEvent('pointerdown', {
       bubbles: true
     });
-    
+
     const move = new MouseEvent('pointermove', {
       clientX: 200,
       bubbles: true
     });
-    
+
     const up = new MouseEvent('pointerup', {
       bubbles: true
     });
-    
+
     leftSlider.dispatchEvent(down);
     leftSlider.dispatchEvent(move);
     leftSlider.dispatchEvent(up);
-    console.log(spyDispatchEvent.mock.calls);
     
     const customEvent = spyDispatchEvent.mock.calls[0][0];
 
