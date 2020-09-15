@@ -218,7 +218,7 @@ describe('events-practice/double-slider', () => {
     leftSlider.dispatchEvent(down);
     leftSlider.dispatchEvent(move);
     leftSlider.dispatchEvent(up);
-    
+
     const customEvent = spyDispatchEvent.mock.calls[0][0];
 
     expect(spyDispatchEvent).toHaveBeenCalled();
