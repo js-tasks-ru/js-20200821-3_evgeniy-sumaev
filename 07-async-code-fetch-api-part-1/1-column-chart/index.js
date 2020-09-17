@@ -1,3 +1,7 @@
+import fetchJson from './utils/fetch-json.js';
+
+const BASE_URL = 'https://course-js.javascript.ru';
+
 export default class ColumnChart {
   element;
   chartHeight = 50;
@@ -9,35 +13,82 @@ export default class ColumnChart {
     },
     formatHeading = data => data
   } = {}) {
-    this.url = url;
+    this.url = new URL(url, BASE_URL);
     this.range = range;
     this.label = label;
     this.link = link;
     this.formatHeading = formatHeading;
 
     this.render();
+    this.loadData(this.range.from, this.range.to);
   }
 
-  getSearchString(baseUrl, url, params) {
-    const keys = Object.keys(params);
-    const paramsString = keys
-      .map(key => key + '=' + params[key].toISOString())
-      .join('&');
+  render() {
+    const elem = document.createElement('div');
+    elem.innerHTML = this.getRenderStr();
+    this.element = elem.firstElementChild;
+    this.subElements = this.getSubElements(this.element);
+  }
 
-    const result = paramsString ? '?' + paramsString : '';
+  getRenderStr() {
+    const renderStr = `
+      <div class="column-chart__title">
+        Total ${this.label}
+        ${this.getLinkStr(this.link)}
+      </div>
+      <div class="column-chart__container">
+        <div data-element="header" class="column-chart__header"></div>
+        <div data-element="body" class="column-chart__chart">
+        </div>
+      </div>`;
 
-    return baseUrl + '/' + url + result;
+    return `<div class='column-chart'>${renderStr}</div>`;
   }
 
   getLinkStr(link) {
     return link ? `<a href="${link}" class="column-chart__link">View all</a>` : '';
   }
 
+  getSubElements(element) {
+    const elements = element.querySelectorAll('[data-element]');
+
+    return [...elements]
+      .reduce((accum, subElement) => {
+      accum[subElement.dataset.element] = subElement;
+
+      return accum;
+    }, {});
+  }
+  
+  async loadData(from, to) {
+    this.element.classList.add('column-chart_loading');
+    this.subElements.header.textContent = '';
+    this.subElements.body.innerHTML = '';
+
+    this.url.searchParams.set('from', from.toISOString());
+    this.url.searchParams.set('to', to.toISOString());
+
+    const data = await fetchJson(this.url);
+
+    if (data && Object.values(data).length) {
+      this.updateChart(data, from, to);
+
+      this.element.classList.remove('column-chart_loading');
+    }
+  }
+
+  updateChart(data, from, to) {
+    this.subElements.body.innerHTML = this.getChartStr(data);
+    this.subElements.header.innerHTML = this.formatHeading( this.getSum(data) );
+    this.range.from = from;
+    this.range.to = to;
+  }
+
   getChartStr(data) {
-    const maxLvl = Math.max(...data);
+    const maxLvl = Math.max(...Object.values(data));
     const idx = this.chartHeight / maxLvl;
 
-    return data
+    return Object.values(data)
       .map(lvl => {
         const chartLvl = Math.floor(lvl * idx);
         const percent = Math.round(lvl / maxLvl * 100);
@@ -47,52 +98,20 @@ export default class ColumnChart {
       
   }
 
-  getSum = (data) => data.reduce((acc, itm) => acc + itm, 0); 
-
-  get renderStr() {
-    const renderStr = `
-      <div class="column-chart__title">
-        Total ${this.label}
-        ${this.getLinkStr(this.link)}
-      </div>
-      <div class="column-chart__container">
-        <div class="column-chart__header">${this.value}</div>
-        <div class="column-chart__chart">
-          ${this.getChartStr(this.data)}
-        </div>
-      </div>`;
-
-    return `<div class='column-chart ${this.data.length ? '' : 'column-chart_loading'}'>${renderStr}</div>`;
+  getSum(data) {
+    return Object.values(data).reduce((acc, itm) => acc + itm);  
   }
 
-  render() {
-    const elem = document.createElement('div');
-    elem.innerHTML = this.renderStr;
-    this.element = elem.firstElementChild;
+  async update(from, to) {
+    await this.loadData(from, to);
+    return true;
   }
 
-  update(data) {
-    if (data.length) {
-      this.element.classList.remove('column-chart_loading');
-    } else {
-      this.element.classList.add('column-chart_loading');
-    }
-    
-    this.element
-      .querySelector('.column-chart__chart')
-      .innerHTML = this.getChartStr(data);
-
-    this.element
-      .querySelector('.column-chart__header')
-      .innerHTML = this.getSum(data);
-  }
-
-  remove () {
+  remove() {
     this.element.remove();
   }
 
   destroy() {
     this.remove();
-    // additionally needed to remove all listeners...
   }
 }
