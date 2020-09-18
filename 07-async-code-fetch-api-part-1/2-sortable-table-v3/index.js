@@ -33,47 +33,42 @@ export default class SortableTable {
 
     this.render();
   }
+  
+  async render() {
+    const { id, order } = this.sorted;
+    const elementWrap = document.createElement('div');
+    elementWrap.innerHTML = this.getTableStr();
+    this.element = elementWrap.firstElementChild;
+    this.subElements = this.getSubElements(this.element);
 
-  onClickSort(e) {
-    const nextOrder = order => {
-      switch (order) {
-        case 'asc':
-          return 'desc';
-        case 'desc':
-          return 'asc';
-        default:
-          return 'asc';
-      }
-    }
-
-    const column = e.target.closest('[data-sortable="true"]');
-    if (column) {
-      const { id, order, sorttype } = column.dataset;
-      const currentOrder = nextOrder(order);
-      this.sort(id, currentOrder, sorttype);
-    }
+    this.data = await this.loadData(id, order, this.start, this.end);
+    this.updateTable(this.data);
+    this.initEventListeners();
   }
 
-  initEventListeners() {
-    this.subElements.header.addEventListener('pointerdown', e => this.onClickSort(e));
+  getTableStr() {
+    return `
+      <div class="sortable-table">
+        ${this.getTableHeader()}
+        ${this.getTableBody(this.data)}
+        <div data-element="loading" class="loading-line sortable-table__loading-line"></div>
+        <div data-element="emptyPlaceholder" class="sortable-table__empty-placeholder">
+          No products
+        </div>
+      </div>`;
   }
-
     
-  createTableHeader() {
-    const tableHeader = document.createElement('div');
-    tableHeader.className = 'sortable-table__header sortable-table__row';
-    tableHeader.dataset.element = 'header';
-    this.subElements.header = tableHeader;
-    this.setTableHeader();
+  getTableHeader() {
+    return (`
+      <div class='sortable-table__header sortable-table__row' data-element='header'>
+        ${this.getHeaderRow()}
+      </div>
+    `)
   }
 
-  setTableHeader() {
-    this.subElements.header.innerHTML = this.getHeaderStr(this.header);
-  }
-
-  getHeaderStr(header) {
+  getHeaderRow() {
     return (
-      `${header.map(({id, title, sortable, sortType}) => {
+      `${this.header.map(({id, title, sortable, sortType}) => {
         const order = sortable ? 'asc' : '';
           return (
             `<div class="sortable-table__cell" data-sortType="${sortType}" data-id="${id}" data-sortable="${sortable}" data-order=${order}>
@@ -97,37 +92,12 @@ export default class SortableTable {
     return ''
   }
 
-  updateHeader(fieldId, order, cleanOrder = true) {
-    const columns = this.subElements.header.children;
-    if (cleanOrder) {
-      for (let elem of columns) {
-        elem.dataset.order = '';
-      }
-    }
-
-    const currentColumn = this.subElements.header.querySelector(`[data-id="${fieldId}"]`);
-    currentColumn.dataset.order = order;
-    const hasArrow = !!currentColumn.querySelector('[data-element="arrow"]');
-
-    if (!hasArrow) {
-      const arrow = this.subElements.header.querySelector('[data-element="arrow"]');
-      currentColumn.append(arrow);
-    }
-  }
-
-  createTableBody() {
-    const tableBody = document.createElement('div');
-    tableBody.className = 'sortable-table__body';
-    tableBody.dataset.element = 'body';
-    this.subElements.body = tableBody;
-    const { id, order, sortType } = this.sorted;
-    const sortedData = this.sortData(id, order, sortType);
-    this.updateHeader(id, order, false);
-    this.setTableBody(sortedData);
-  }
-
-  setTableBody(data) {
-    this.subElements.body.innerHTML = this.getBodyStr(this.header, data);
+  getTableBody(data) {
+    return (`
+      <div class='sortable-table__body' data-element='body'>
+        ${this.getBodyStr(this.header, data)}
+      </div>
+    `)
   }
 
   getBodyStr(header, data) {
@@ -149,20 +119,101 @@ export default class SortableTable {
       </div>`
     );
   }
-
-  createTableElement() {
-    const table = document.createElement('div');
-    table.className = 'sortable-table';
-    this.element = table;
-  }
-
-
-  sort(field, param, sorttype, customSort = () => {}) {
-    this.updateHeader(field, param);
-    const sortedData = this.sortData(field, param, sorttype, customSort);
-    this.setTableBody(sortedData);
-  }
   
+  getSubElements(element) {
+    const elements = element.querySelectorAll('[data-element]');
+
+    return [...elements]
+      .reduce((acc, subElement) => {
+      acc[subElement.dataset.element] = subElement;
+
+      return acc;
+    }, {});
+  }
+
+  async loadData(id, order, start = this.start, end = this.end) {
+    this.url.searchParams.set('_sort', id);
+    this.url.searchParams.set('_order', order);
+    this.url.searchParams.set('_start', start);
+    this.url.searchParams.set('_end', end);
+
+    let data = await fetchJson(this.url);
+
+    this.element.classList.remove('sortable-table_loading');
+
+    return data;
+  }
+
+  updateTable(data) {
+    if (data.length) {
+      this.element.classList.remove('sortable-table_empty');
+      this.subElements.body.innerHTML = this.getTableBody(data);
+    } else {
+      this.element.classList.add('sortable-table_empty');
+    }
+  }
+
+  onClickSort = event => {
+    const nextOrder = order => {
+      switch (order) {
+        case 'asc':
+          return 'desc';
+        case 'desc':
+          return 'asc';
+        default:
+          return 'asc';
+      }
+    }
+
+    const column = event.target.closest('[data-sortable="true"]');
+    if (column) {
+      const { id, order, sorttype } = column.dataset;
+      const currentOrder = nextOrder(order);
+
+      this.sorted = {
+        id,
+        order: currentOrder,
+        sorttype: sorttype,
+      };
+
+      if (this.isSortLocally) {
+        this.sortLocally(id, currentOrder, sorttype);
+      } else {
+        this.sortOnServer(id, currentOrder, 1, 1 + this.step);
+      }
+
+    }
+  }
+
+  initEventListeners() {
+    this.subElements.header.addEventListener('pointerdown', this.onClickSort);
+  }
+
+  
+  updateHeader(fieldId, order, cleanOrder = true) {
+    const columns = this.subElements.header.children;
+    if (cleanOrder) {
+      for (let elem of columns) {
+        elem.dataset.order = '';
+      }
+    }
+
+    const currentColumn = this.subElements.header.querySelector(`[data-id="${fieldId}"]`);
+    currentColumn.dataset.order = order;
+    const hasArrow = currentColumn.querySelector('[data-element="arrow"]');
+
+    if (!hasArrow) {
+      const arrow = this.subElements.header.querySelector('[data-element="arrow"]');
+      currentColumn.append(arrow);
+    }
+  }
+
+  sortLocally(field, param, sorttype, customSort = () => {}) {
+    const sortedData = this.sortData(field, param, sorttype, customSort);
+    this.updateHeader(field, param);
+    this.updateTable(sortedData);
+  }
+
   sortData(field, param, sorttype, customSort) {
     const sortDirection = {
       asc: 1,
@@ -184,15 +235,11 @@ export default class SortableTable {
       }
     });
   }
-  
 
-  render() {
-    this.createTableHeader();
-    this.createTableBody();
-    this.createTableElement();
-    this.element.append(this.subElements.header);
-    this.element.append(this.subElements.body);
-    this.initEventListeners();
+  async sortOnServer(field, param, start, end) {
+    const sortedData = await this.loadData(field, param, start, end);
+    this.updateHeader(field, param);
+    this.updateTable(sortedData);
   }
 
   remove() {
