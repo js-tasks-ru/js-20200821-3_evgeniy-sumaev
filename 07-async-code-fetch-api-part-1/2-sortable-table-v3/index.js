@@ -42,7 +42,7 @@ export default class SortableTable {
     this.subElements = this.getSubElements(this.element);
 
     this.data = await this.loadData(id, order, this.start, this.end);
-    this.updateTable(this.data);
+    this.updateBody(this.data);
     this.initEventListeners();
   }
 
@@ -95,13 +95,13 @@ export default class SortableTable {
   getTableBody(data) {
     return (`
       <div class='sortable-table__body' data-element='body'>
-        ${this.getBodyStr(this.header, data)}
+        ${this.getBodyStr(data)}
       </div>
     `)
   }
 
-  getBodyStr(header, data) {
-    return `${data.map(tableRowItem => this.getBodyRow(header, tableRowItem)).join('')}`;
+  getBodyStr(data) {
+    return `${data.map(tableRowItem => this.getBodyRow(this.header, tableRowItem)).join('')}`;
   }
 
   getBodyRow(header, tableRowItem) {
@@ -144,15 +144,6 @@ export default class SortableTable {
     return data;
   }
 
-  updateTable(data) {
-    if (data.length) {
-      this.element.classList.remove('sortable-table_empty');
-      this.subElements.body.innerHTML = this.getTableBody(data);
-    } else {
-      this.element.classList.add('sortable-table_empty');
-    }
-  }
-
   onClickSort = event => {
     const nextOrder = order => {
       switch (order) {
@@ -185,20 +176,37 @@ export default class SortableTable {
     }
   }
 
-  initEventListeners() {
-    this.subElements.header.addEventListener('pointerdown', this.onClickSort);
+  onScroll = async () => {
+    const { bottom } = this.element.getBoundingClientRect();
+    const { clientHeight } = document.documentElement;
+    const { id, order } = this.sorted;
+
+    if (bottom < clientHeight && !this.loading && !this.isSortLocally) {
+      this.loading = true;
+
+      const nextEnd = this.end + this.step;
+      const newData = await this.loadData(id, order, this.end, nextEnd);
+      this.loading = false;
+      
+      this.data = [...this.data, ...newData];
+      this.updateTable(this.data);
+    } 
   }
 
+  initEventListeners() {
+    this.subElements.header.addEventListener('pointerdown', this.onClickSort);
+    document.addEventListener('scroll', this.onScroll);
+  }
   
-  updateHeader(fieldId, order, cleanOrder = true) {
+  updateHeader() {
     const columns = this.subElements.header.children;
-    if (cleanOrder) {
-      for (let elem of columns) {
-        elem.dataset.order = '';
-      }
+    const { id, order } = this.sorted;
+
+    for (let elem of columns) {
+      elem.dataset.order = '';
     }
 
-    const currentColumn = this.subElements.header.querySelector(`[data-id="${fieldId}"]`);
+    const currentColumn = this.subElements.header.querySelector(`[data-id="${id}"]`);
     currentColumn.dataset.order = order;
     const hasArrow = currentColumn.querySelector('[data-element="arrow"]');
 
@@ -208,23 +216,36 @@ export default class SortableTable {
     }
   }
 
-  sortLocally(field, param, sorttype, customSort = () => {}) {
-    const sortedData = this.sortData(field, param, sorttype, customSort);
-    this.updateHeader(field, param);
+  updateBody(data) {
+    if (data.length) {
+      this.element.classList.remove('sortable-table_empty');
+      this.subElements.body.innerHTML = this.getBodyStr(data);
+    } else {
+      this.element.classList.add('sortable-table_empty');
+    }
+  }
+
+  updateTable(data) {
+    this.updateHeader();
+    this.updateBody(data)
+  }
+
+  sortLocally(id, param, sorttype, customSort = () => {}) {
+    const sortedData = this.sortData(id, param, sorttype, customSort);
     this.updateTable(sortedData);
   }
 
-  sortData(field, param, sorttype, customSort) {
+  sortData(id, param, sorttype, customSort) {
     const sortDirection = {
       asc: 1,
       desc: -1
     }
 
     const sortMethods = {
-      string: (a, b) => a[field].localeCompare(b[field], ['ru', 'en'], { caseFirst: 'upper' }),
-      number: (a, b) => a[field] > b[field] ? 1 : -1,
-      custom: (a, b) => customSort(a[field] > b[field]),
-      default: (a, b) => a[field] > b[field] ? 1 : -1,
+      string: (a, b) => a[id].localeCompare(b[id], ['ru', 'en'], { caseFirst: 'upper' }),
+      number: (a, b) => a[id] > b[id] ? 1 : -1,
+      custom: (a, b) => customSort(a[id] > b[id]),
+      default: (a, b) => a[id] > b[id] ? 1 : -1,
     }
     
     return [...this.data].sort((a, b) => {
@@ -236,17 +257,17 @@ export default class SortableTable {
     });
   }
 
-  async sortOnServer(field, param, start, end) {
-    const sortedData = await this.loadData(field, param, start, end);
-    this.updateHeader(field, param);
+  async sortOnServer(id, param, start, end) {
+    const sortedData = await this.loadData(id, param, start, end);
     this.updateTable(sortedData);
   }
 
   remove() {
     this.element.remove();
-    for (let field in this.subElements) {
-      this.subElements[field].remove();
+    for (let id in this.subElements) {
+      this.subElements[id].remove();
     }
+    document.removeEventListener('scroll', this.onScroll);
   }
 
   destroy() {
