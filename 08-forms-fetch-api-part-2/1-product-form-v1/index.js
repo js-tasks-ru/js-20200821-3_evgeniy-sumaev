@@ -35,8 +35,6 @@ export default class ProductForm {
 
     this.formData = productData;
     this.categories = categoriesData;
-    console.log(this.formData);
-    console.log(this.categories);
 
     const formWrap = document.createElement('div');
 
@@ -48,6 +46,7 @@ export default class ProductForm {
     this.subElements = this.getSubElements();
 
     this.setFormData();
+    this.initEventListeners();
 
     return this.element;
   }
@@ -71,23 +70,15 @@ export default class ProductForm {
             <div data-elem="imageListContainer">
               <ul class="sortable-list">
                 ${this.getImageList()}
-                ${console.log(this.getImageList())}
               </ul>
             </div>
-            <button type="button" name="uploadImage" class="button-primary-outline fit-content">
+            <button type="button" name="uploadImage" data-elem="uploadImageBtn" class="button-primary-outline fit-content">
               <span>Загрузить</span>
             </button>
           </div>
           <div class="form-group form-group__half_left">
             <label class="form-label">Категория</label>
-            ${this.createCategoriesSelect()}
-            ${console.log(this.createCategoriesSelect())}
-            <select class="form-control" name="category">
-              <option value="tovary-dlya-kuxni">Бытовая техника &gt; Товары для кухни</option>
-              <option value="krasota-i-zdorove">Бытовая техника &gt; Красота и здоровье</option>
-              <option value="tovary-dlya-doma">Бытовая техника &gt; Товары для дома</option>
-              <option value="planshety-elektronnye-knigi">Смартфоны &gt; Планшеты, электронные книги</option><option value="fototexnika">Смартфоны &gt; Фототехника</option><option value="smartfony-i-gadzhety">Смартфоны &gt; Смартфоны и гаджеты</option><option value="audiotexnika">ТВ и Развлечения &gt; Аудиотехника</option><option value="igry-i-xobbi">ТВ и Развлечения &gt; Игры и хобби</option><option value="televizory-i-aksessuary">ТВ и Развлечения &gt; Телевизоры и аксессуары</option><option value="kompyutery-noutbuki-i-po">Компьютеры &gt; Компьютеры, ноутбуки и ПО</option><option value="periferiya-i-aksessuary">Компьютеры &gt; Периферия и аксессуары</option><option value="komplektuyushhie-dlya-pk">Компьютеры &gt; Комплектующие для ПК</option><option value="orgtexnika-i-ofisnoe-oborudovanie">Офис и сеть &gt; Оргтехника и офисное оборудование</option><option value="professionalnoe-setevoe-oborudovanie">Офис и сеть &gt; Профессиональное сетевое оборудование</option><option value="marshrutizatory-i-prochee-besprovodnoe-oborudovanie">Офис и сеть &gt; Маршрутизаторы и прочее беспроводное оборудование</option><option value="aksessuary-dlya-mobilnyx-ustrojstv">Аксессуары &gt; Для мобильных устройств</option><option value="aksessuary-dlya-bytovoj-texniki">Аксессуары &gt; Для бытовой техники</option><option value="aksessuary-dlya-kompyuterov-i-noutbukov">Аксессуары &gt; Для компьютеров и ноутбуков</option><option value="naruzhnye-i-vnutrisalonnye-aksessuary">Автотовары &gt; Наружные и внутрисалонные аксессуары</option><option value="avtoelektronika-i-protivougonnye-sistemy">Автотовары &gt; Автоэлектроника и противоугонные системы</option><option value="avtozvuk">Автотовары &gt; Автозвук</option><option value="stroitelstvo-izmerenie-i-uborka">Инструменты &gt; Строительство, измерение и уборка</option><option value="elektroinstrumenty-i-texnika-dlya-sada">Инструменты &gt; Электроинструменты и техника для сада</option><option value="ruchnoj-instrument-i-osnastka">Инструменты &gt; Ручной инструмент и оснастка</option>
-            </select>
+            ${this.getCategoriesSelect()}
           </div>
           <div class="form-group form-group__half_left form-group__two-col">
             <fieldset>
@@ -120,17 +111,22 @@ export default class ProductForm {
   }
 
   getImageList() {
-    return this.formData.images.map(({url, source}) => `
+    return this.formData.images
+      .map(({ url, source }) => this.getImageItem(url, source)).join('');
+  }
+
+  getImageItem(url, name) {
+    return `
         <li class='products-edit__imagelist-item sortable-list__item'>
         <span>
           <img src="./icon-grab.svg" data-grab-handle alt="grab">
-          <img class="sortable-table__cell-img" alt="${escapeHtml(source)}" src="${escapeHtml(url)}">
-          <span>${escapeHtml(source)}</span>
+          <img class="sortable-table__cell-img" alt="${escapeHtml(name)}" src="${escapeHtml(url)}">
+          <span>${escapeHtml(name)}</span>
         </span>
         <button type="button">
           <img src="./icon-trash.svg" alt="delete" data-delete-handle>
         </button>
-      </li>`).join('');
+      </li>`;
   }
 
   getEmptyTemplate() {
@@ -141,17 +137,7 @@ export default class ProductForm {
       </div>`;
   }
 
-  setFormData() {
-    const daya = Object.keys(this.defaultFormData)
-      .filter(key => key !== 'images')
-      .forEach(item => {
-        if (this.formData[item]) {
-          this.element.querySelector(`[data-form=${item}]`).value = this.formData[item];
-        }
-      })
-  }
-
-  createCategoriesSelect() {
+  getCategoriesSelect() {
     return `
     <select class="form-control" name="subcategory" data-form="subcategory">
       ${this.categories.reduce((accum, { title: mainTitle, subcategories }) => {
@@ -162,15 +148,84 @@ export default class ProductForm {
     </select>`
   }
 
-
-
   getSubElements() {
-    const subElements = document.querySelectorAll('[data-elem]');
+    const subElements = this.element.querySelectorAll('[data-elem]');
 
     return [...subElements].reduce((acc, subElement) => {
-      acc[subElement.dataset.element] = subElement;
+      const subElementName = subElement.dataset.elem;
+      acc[subElementName] = subElement;
       return acc;
     }, {})
+  }
+  
+  setFormData() {
+    const daya = Object.keys(this.defaultFormData)
+      .filter(key => key !== 'images')
+      .forEach(item => {
+        if (this.formData[item]) {
+          this.element.querySelector(`[data-form=${item}]`).value = this.formData[item];
+        }
+      })
+  }
+
+  initEventListeners() {
+    const { productForm, uploadImageBtn, imageListContainer } = this.subElements;
+
+    productForm.addEventListener('submit', this.submitForm);
+    uploadImageBtn.addEventListener('click', this.uploadImage);
+    imageListContainer.addEventListener('click', this.deleteImage);
+  }
+
+  uploadImage = () => {
+    const fileInput = document.createElement('input');
+
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+
+    const { uploadImageBtn, imageListContainer } = this.subElements;
+    fileInput.addEventListener('change', addImage.bind(this));
+    
+    async function addImage() {
+      if (fileInput.files.length) {
+        uploadImageBtn.classList.add('is-loading');
+        uploadImageBtn.disabled = true;
+
+        const img = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('image', img);
+
+        const result = await fetchJson('https://api.imgur.com/3/image', {
+          method: 'POST',
+          headers: {
+            Authorization: `Client-ID ${IMGUR_CLIENT_ID}`
+          },
+          body: formData
+        })
+
+        const newImg = this.getImageItem(result.data.link, img.name);
+        imageListContainer.firstElementChild.insertAdjacentHTML('beforeEnd', newImg);
+        
+        uploadImageBtn.classList.remove('is-loading');
+        uploadImageBtn.disabled = false;
+
+        fileInput.remove();
+      }
+
+    }
+
+    fileInput.hidden = true;
+    document.body.appendChild(fileInput);
+    fileInput.click();
+  }
+
+  deleteImage = event => {
+    if ('deleteHandle' in event.target.dataset) {
+      event.target.closest('.sortable-list__item').remove();
+    }
+  }
+
+  submitForm = event => {
+    event.preventDefault();
   }
 
   remove() {
