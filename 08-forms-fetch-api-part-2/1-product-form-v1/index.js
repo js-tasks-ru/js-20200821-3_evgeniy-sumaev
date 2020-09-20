@@ -29,7 +29,7 @@ export default class ProductForm {
 
     const productPromise = this.productId 
       ? fetchJson(`${BASE_URL}/${PRODUCT_DATA_URL}?id=${this.productId}`)
-      : this.defaultFormData;
+      : [this.defaultFormData];
 
     const [categoriesData, [productData]] = await Promise.all([categoriesPromise, productPromise]);
 
@@ -38,11 +38,15 @@ export default class ProductForm {
 
     const formWrap = document.createElement('div');
 
-    formWrap.innerHTML = this.formData
-      ? this.getTemplate()
-      : this.getEmptyTemplate();
+    if (this.formData) {
+      formWrap.innerHTML = this.getTemplate();
+      this.element = formWrap.firstElementChild;
+    } else {
+      formWrap.innerHTML = this.getEmptyTemplate();
+      this.element = formWrap.firstElementChild;
+      return;
+    }
 
-    this.element = formWrap.firstElementChild;
     this.subElements = this.getSubElements();
 
     this.setFormData();
@@ -53,17 +57,17 @@ export default class ProductForm {
 
   getTemplate() {
     return `
-      <div class="product-form">
+      (<div class="product-form">
         <form data-elem="productForm" class="form-grid">
           <div class="form-group form-group__half_left">
             <fieldset>
               <label class="form-label">Название товара</label>
-              <input required="" type="text" name="title" data-form="title" class="form-control" placeholder="Название товара">
+              <input required="" type="text" name="title" id="title" data-form="title" class="form-control" placeholder="Название товара">
             </fieldset>
           </div>
           <div class="form-group form-group__wide">
             <label class="form-label">Описание</label>
-            <textarea required="" class="form-control" name="description" data-form="description" placeholder="Описание товара"></textarea>
+            <textarea required="" class="form-control" name="description" id="description" data-form="description" placeholder="Описание товара"></textarea>
           </div>
           <div class="form-group form-group__wide" data-elem="sortable-list-container">
             <label class="form-label">Фото</label>
@@ -83,20 +87,20 @@ export default class ProductForm {
           <div class="form-group form-group__half_left form-group__two-col">
             <fieldset>
               <label class="form-label">Цена ($)</label>
-              <input required="" type="number" name="price" data-form="price" class="form-control" placeholder="100">
+              <input required="" type="number" name="price" id="price" data-form="price" class="form-control" placeholder="100">
             </fieldset>
             <fieldset>
               <label class="form-label">Скидка ($)</label>
-              <input required="" type="number" name="discount" data-form="discount" class="form-control" placeholder="0">
+              <input required="" type="number" name="discount" id="discount" data-form="discount" class="form-control" placeholder="0">
             </fieldset>
           </div>
           <div class="form-group form-group__part-half">
             <label class="form-label">Количество</label>
-            <input required="" type="number" class="form-control" name="quantity" data-form="quantity" placeholder="1">
+            <input required="" type="number" class="form-control" name="quantity" id="quantity" data-form="quantity" placeholder="1">
           </div>
           <div class="form-group form-group__part-half">
             <label class="form-label">Статус</label>
-            <select class="form-control" name="status" data-form="status">
+            <select class="form-control" name="status" id="status" data-form="status">
               <option value="1">Активен</option>
               <option value="0">Неактивен</option>
             </select>
@@ -107,7 +111,7 @@ export default class ProductForm {
             </button>
           </div>
         </form>
-      </div>`
+      </div>)`
   }
 
   getImageList() {
@@ -139,7 +143,7 @@ export default class ProductForm {
 
   getCategoriesSelect() {
     return `
-    <select class="form-control" name="subcategory" data-form="subcategory">
+    <select class="form-control" name="subcategory" id="subcategory" data-form="subcategory">
       ${this.categories.reduce((accum, { title: mainTitle, subcategories }) => {
         return accum + subcategories.reduce((acc, { title, id }) => {
           return acc + `<option value=${id}>${mainTitle} &gt; ${title}</option>`;
@@ -159,11 +163,11 @@ export default class ProductForm {
   }
   
   setFormData() {
-    const daya = Object.keys(this.defaultFormData)
-      .filter(key => key !== 'images')
-      .forEach(item => {
-        if (this.formData[item]) {
-          this.element.querySelector(`[data-form=${item}]`).value = this.formData[item];
+    Object.keys(this.defaultFormData)
+      .filter(feild => feild !== 'images')
+      .forEach(feild => {
+        if (this.formData[feild]) {
+          this.element.querySelector(`[data-form=${feild}]`).value = this.formData[feild];
         }
       })
   }
@@ -224,8 +228,58 @@ export default class ProductForm {
     }
   }
 
-  submitForm = event => {
+  submitForm = async event => {
     event.preventDefault();
+    const method = this.productId ? 'PATCH' : 'PUT';
+
+    try {
+      const result = await fetchJson(`${BASE_URL}/${PRODUCT_DATA_URL}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(this.getFormData())
+      })
+
+      this.save(result.id);
+    } catch (error) {
+      console.error('something went wrong', error);
+    }
+
+  }
+
+  getFormData() {
+    const { productForm, imageListContainer } = this.subElements;
+    const numberFields = ['price', 'quantity', 'discount', 'status'];
+
+    const values = [...productForm.querySelectorAll('[data-form]')]
+      .reduce((acc, { name, value }) => {
+        if (numberFields.includes(name)) {
+          acc[name] = parseInt(value);
+        } else {
+          acc[name] = value;
+        }
+        return acc;
+      }, {});
+  
+    values.images = [];
+    values.id = this.productId;
+
+    imageListContainer
+      .querySelectorAll('.sortable-table__cell-img')
+      .forEach(({ src, alt }) => {
+        values.images.push({
+            url: src,
+            source: alt
+          })
+      })
+
+    return values;
+  }
+
+  save(id) {
+    const event = this.productId ? 'product-updated' : 'product-saved';
+    this.element.dispatchEvent(new CustomEvent(event, { detail: id }));
   }
 
   remove() {
@@ -235,6 +289,5 @@ export default class ProductForm {
   destroy() {
     this.remove();
   }
-
 
 }
