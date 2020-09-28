@@ -15,7 +15,7 @@ export default class RangePicker {
   }
 
   normalizeDate(date) {
-    return date.toLocaleString('ru', {dateStyle: 'short'})
+    return new Date(date).toLocaleString('ru', {dateStyle: 'short'})
   }
 
   render() {
@@ -91,13 +91,14 @@ export default class RangePicker {
   }
 
   selectRange = event => {
-    const { selector } = this.subElements;
+    const { selector, from: fromElem, to: toElem } = this.subElements;
 
     if (!event.target.closest('.rangepicker__cell')) return;
 
     if (this.selected.from && this.selected.to) {
-      this.selected.from = null;
+      this.selected.from = new Date(event.target.dataset.value);
       this.selected.to = null;
+      
       selector
         .querySelectorAll('.rangepicker__cell')
         .forEach(button => {
@@ -106,19 +107,25 @@ export default class RangePicker {
           button.classList.remove('rangepicker__selected-to')
         })
 
-      this.getDate(event);
       event.target.classList.add('rangepicker__selected-from');
     } else {
-      event.target.classList.add('rangepicker__selected-to');
-    }
-  }
+      this.selected.to = new Date(event.target.dataset.value);
+      fromElem.textContent = this.normalizeDate(this.selected.from);
+      toElem.textContent = this.normalizeDate(this.selected.to);
 
-  getDate(event) {
-    const day = event.target.textContent;
-    const month = event
-      .target.closest('.rangepicker__calendar')
-      .querySelector('[datetime]')
-      .textContent;
+      event.target.classList.add('rangepicker__selected-to');
+
+      selector
+        .querySelectorAll('.rangepicker__cell')
+        .forEach(button => {
+          const buttonDate = new Date(button.dataset.value);
+          if (buttonDate > this.selected.from && buttonDate < this.selected.to) {
+            button.classList.add('rangepicker__selected-between');
+          }
+        })
+
+      this.element.classList.remove('rangepicker_open');
+    }
   }
 
   prevMonth = () => {
