@@ -109,7 +109,15 @@ export default class RangePicker {
 
       event.target.classList.add('rangepicker__selected-from');
     } else {
-      this.selected.to = new Date(event.target.dataset.value);
+      const selectedDate = new Date(event.target.dataset.value);
+
+      if (selectedDate < this.selected.from) {
+        this.selected.to = this.selected.from;
+        this.selected.from = selectedDate;
+      } else {
+        this.selected.to = selectedDate;
+      }
+      
       fromElem.textContent = this.normalizeDate(this.selected.from);
       toElem.textContent = this.normalizeDate(this.selected.to);
 
